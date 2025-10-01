@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ShweLibrary Photos (Firebase)</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Auth Screen -->
+  <div id="authScreen" class="screen">
+    <div class="card">
+      <h1>ShweLibrary Photos</h1>
+      <div class="tabs">
+        <button id="tabLogin" class="active">၀င်ရောက်မည်</button>
+        <button id="tabSignup">အကောင့်ဖွင့်မည်</button>
+      </div>
+      <form id="loginForm" class="auth-form">
+        <input type="email" id="loginEmail" placeholder="အီးမေးလ်" required>
+        <input type="password" id="loginPass" placeholder="လျှို့၀ှက်စကားဝှက်" required>
+        <button type="submit" class="primary">၀င်ရောက်မည်</button>
+      </form>
+      <form id="signupForm" class="auth-form hidden">
+        <input type="text" id="signupName" placeholder="နာမည်" required>
+        <input type="email" id="signupEmail" placeholder="အီးမေးလ်" required>
+        <input type="password" id="signupPass" placeholder="စကားဝှက် (အနည်းဆုံး ၆ လုံး)" minlength="6" required>
+        <button type="submit" class="primary">အကောင့်ဖွင့်မည်</button>
+      </form>
+      <p class="muted small">Firebase Auth / Firestore / Storage အသုံးပြုထားသည်</p>
+    </div>
+  </div>
+
+  <!-- App -->
+  <div id="appScreen" class="screen hidden">
+    <header class="topbar">
+      <button id="btnMenu" aria-label="menu">☰</button>
+      <h2 class="brand">ShweLibrary</h2>
+      <div class="right">
+        <button id="btnUpload" class="primary small">＋ ပုံတင်မည်</button>
+        <button id="btnBatch" class="ghost small">✔︎ Batch</button>
+        <button id="btnLogout" class="ghost small">ထွက်မည်</button>
+      </div>
+    </header>
+
+    <aside id="sidebar" class="sidebar hidden">
+      <div class="userbox">
+        <div id="userInitials" class="avatar">U</div>
+        <div>
+          <div id="userName">User</div>
+          <div id="userEmail" class="muted small"></div>
+        </div>
+      </div>
+      <hr>
+      <div class="section">
+        <h4>Albums</h4>
+        <div id="albumList" class="pill-list"></div>
+        <button id="btnNewAlbum" class="ghost full">＋ အယ်လဘမ်အသစ်</button>
+      </div>
+      <div class="section">
+        <h4>Filters</h4>
+        <label class="filter"><input type="checkbox" id="fFav"> ပျင်းချင် ⭐</label>
+        <label class="filter"><input type="checkbox" id="fEdited"> ပြင်ထားသည်</label>
+        <div class="select-row">
+          <select id="fCategory">
+            <option value="">အမျိုးအစားအားလုံး</option>
+            <option>Family</option><option>Travel</option><option>Food</option>
+            <option>Art</option><option>Work</option><option>Other</option>
+          </select>
+          <select id="fSort">
+            <option value="new">အသစ်ဆုံး</option>
+            <option value="old">အဟောင်းဆုံး</option>
+            <option value="title">ခေါင်းစဉ်</option>
+          </select>
+        </div>
+        <input id="fSearch" placeholder="ရှာရန် (ခေါင်းစဉ်/စာတန်း/Tags)">
+      </div>
+      <div class="section">
+        <h4>Album Music</h4>
+        <p class="small muted">Album ကြည့်နေစဉ် background သီချင်းဖွင့်ရန်</p>
+        <input type="file" id="albumAudio" accept="audio/*">
+        <button id="btnAttachAudio" class="ghost full">ယခု album သို့ချိတ်မည်</button>
+        <audio id="player" controls class="full"></audio>
+      </div>
+    </aside>
+
+    <main class="content">
+      <div class="toolbar">
+        <div class="chips" id="viewTabs">
+          <button data-view="grid" class="chip active">Grid</button>
+          <button data-view="masonry" class="chip">Masonry</button>
+          <button data-view="list" class="chip">List</button>
+        </div>
+        <div class="chips" id="quickFilters">
+          <button class="chip" data-q="cartoon">Cartoon</button>
+          <button class="chip" data-q="caricature">Caricature</button>
+          <button class="chip" data-q="watercolor">Watercolor</button>
+          <button class="chip" data-q="bg">BG Changed</button>
+        </div>
+      </div>
+
+      <div id="gallery" class="gallery grid"></div>
+    </main>
+  </div>
+
+  <!-- Upload Modal -->
+  <dialog id="uploadDlg" class="modal">
+    <form method="dialog" class="modal-card" id="uploadForm">
+      <h3>ပုံတင်မည်</h3>
+      <input type="file" id="fileInput" accept="image/*" required>
+      <input type="text" id="uTitle" placeholder="ခေါင်းစဉ်">
+      <input type="text" id="uCaption" placeholder="စာတန်း">
+      <textarea id="uDesc" placeholder="ဖော်ပြချက်"></textarea>
+      <input type="text" id="uTags" placeholder="tags (comma separated)">
+      <select id="uAlbum"></select>
+      <div class="actions">
+        <button value="cancel" class="ghost">ပယ်ဖျက်</button>
+        <button id="btnDoUpload" class="primary">သိမ်းမည်</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Viewer / Editor -->
+  <dialog id="viewerDlg" class="modal wide">
+    <div class="viewer">
+      <div class="canvas-wrap">
+        <canvas id="canvas"></canvas>
+      </div>
+      <div class="editor">
+        <div class="row">
+          <button class="chip small" data-effect="none">မူလ</button>
+          <button class="chip small" data-effect="cartoon">Cartoon</button>
+          <button class="chip small" data-effect="watercolor">Watercolor</button>
+          <button class="chip small" data-effect="caricature">Caricature*</button>
+          <button class="chip small" data-effect="background">BG ပြောင်း</button>
+        </div>
+        <div class="row sliders">
+          <label>Brightness <input type="range" id="slBright" min="-100" max="100" value="0"></label>
+          <label>Contrast <input type="range" id="slContrast" min="-100" max="100" value="0"></label>
+          <label>Saturation <input type="range" id="slSatu" min="-100" max="100" value="0"></label>
+          <label>Hue <input type="range" id="slHue" min="-180" max="180" value="0"></label>
+          <label>Blur <input type="range" id="slBlur" min="0" max="6" value="0"></label>
+        </div>
+
+        <div class="row">
+          <input type="color" id="bgColor" value="#ffffff">
+          <input type="file" id="bgImage" accept="image/*">
+          <button id="btnApply" class="primary small">သိမ်းမည်</button>
+          <button id="btnDownload" class="ghost small">Download</button>
+        </div>
+
+        <div class="row">
+          <button id="btnSticker" class="ghost small">Sticker ထည့်</button>
+          <button id="btnFrame" class="ghost small">Frame ထည့်</button>
+          <button id="btnWatermark" class="ghost small">Watermark</button>
+        </div>
+
+        <div class="meta">
+          <input id="mTitle" placeholder="ခေါင်းစဉ်">
+          <input id="mCaption" placeholder="စာတန်း">
+          <textarea id="mDesc" placeholder="ဖော်ပြချက်"></textarea>
+        </div>
+        <div class="row">
+          <button id="btnFav" class="ghost small">⭐ Favorite</button>
+          <button id="btnMove" class="ghost small">Album ပြောင်း…</button>
+          <button id="btnCover" class="ghost small">Album Cover သတ်မှတ်</button>
+          <button id="btnDelete" class="ghost small danger">ဖျက်မည်</button>
+          <button id="btnCloseViewer" class="ghost small">ပိတ်</button>
+        </div>
+        <p class="small muted">* Caricature = warp/bulge (beta) | Shortcuts: ←/→, D, E, Delete</p>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Batch Toolbar -->
+  <div id="batchBar" class="batch hidden">
+    <div><span id="batchCount">0</span> ပုံရွေးထားသည်</div>
+    <div class="actions">
+      <button id="batchMove" class="ghost small">Album ပြောင်း</button>
+      <button id="batchTag" class="ghost small">Tag ထည့်</button>
+      <button id="batchDelete" class="ghost small danger">ဖျက်</button>
+      <button id="batchFilter" class="ghost small">Filter လှည့်</button>
+      <button id="batchClear" class="ghost small">ပယ်</button>
+    </div>
+  </div>
+
+  <template id="tplPhotoCard">
+    <div class="card photo">
+      <label class="pick hidden"><input type="checkbox" class="pickbox"></label>
+      <img crossorigin="anonymous">
+      <div class="meta">
+        <div class="title"></div>
+        <div class="caption"></div>
+      </div>
+      <div class="fav">⭐</div>
+    </div>
+  </template>
+
+  <!-- Firebase SDKs -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>
