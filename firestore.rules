@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() { return request.auth != null; }
+
+    // Items: anyone can read, only signed-in users can write (DEV)
+    match /items/{id} {
+      allow read: if true;
+      allow create, update, delete: if isSignedIn();
+    }
+
+    // Orders: read own, create own
+    match /orders/{id} {
+      allow read: if isSignedIn() && request.auth.uid == resource.data.userId;
+      allow create: if isSignedIn() && request.auth.uid == request.resource.data.userId;
+    }
+
+    // Ads / Promotions (DEV: signed-in can write)
+    match /ads/{id} { allow read: if true; allow write: if isSignedIn(); }
+    match /promotions/{id} { allow read: if true; allow write: if isSignedIn(); }
+
+    // Feedback: anyone can create, only signed-in read (or adjust to your need)
+    match /feedback/{id} {
+      allow create: if true;
+      allow read: if isSignedIn();
+    }
+
+    // Users doc: owner read/write
+    match /users/{uid} {
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+    }
+  }
+}
