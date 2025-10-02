@@ -74,13 +74,13 @@ window.addEventListener('role-change', (e) => {
 
 // Face-api model loading
 let faceModelsReady = false;
-async function loadFaceModels() {
-  try {
-    const MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights';
+async function loadFaceModels(){
+  try{
+    const MODEL_URL = '/models'; // self-hosted under your Hosting public dir
     await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
     await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
     faceModelsReady = true;
-  } catch (e) {
+  }catch(e){
     console.warn('face-api models failed to load', e);
   }
 }

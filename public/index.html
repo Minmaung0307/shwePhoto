@@ -1,329 +1,444 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Photo Studio Pro — Mobile First</title>
-  <link rel="stylesheet" href="/styles.css" />
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Photo Studio Pro — Mobile First</title>
+    <link rel="stylesheet" href="/styles.css" />
 
-  <!-- EmailJS SDK -->
-  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
-  <!-- jsPDF for multi-page export -->
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <!-- face-api.js for face landmarks -->
-  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <!-- EmailJS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+    <!-- jsPDF for multi-page export -->
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <!-- face-api.js for face landmarks -->
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"
+    ></script>
 
-  <!-- Firebase v10 (Modular) -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-analytics.js";
-    import { getAuth, onAuthStateChanged, signInAnonymously, signOut, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
-    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
-    import { getStorage } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-storage.js";
+    <!-- Firebase v10 (Modular) -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+      
+      import {
+        getAuth,
+        onAuthStateChanged,
+        signInAnonymously,
+        signOut,
+        GoogleAuthProvider,
+        signInWithPopup,
+      } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+      import {
+        getFirestore,
+        doc,
+        getDoc,
+      } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+      import { getStorage } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-storage.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyAuzySrz5G6PldnTljOJjmg1emKV5mqzz4",
-      authDomain: "shwephoto-mm.firebaseapp.com",
-      projectId: "shwephoto-mm",
-      /* RECOMMENDED: verify your actual bucket name in Firebase console */
-      storageBucket: "shwephoto-mm.firebasestorage.app",
-      // storageBucket: "shwephoto-mm.appspot.com", // <-- typical format
-      messagingSenderId: "580359744533",
-      appId: "1:580359744533:web:363b3a0113fb9e94dff21c",
-      measurementId: "G-QN5EF2D0JY"
-    };
+      const firebaseConfig = {
+        apiKey: "AIzaSyAuzySrz5G6PldnTljOJjmg1emKV5mqzz4",
+        authDomain: "shwephoto-mm.firebaseapp.com",
+        projectId: "shwephoto-mm",
+        storageBucket: "shwephoto-mm.firebasestorage.app",
+        messagingSenderId: "580359744533",
+        appId: "1:580359744533:web:363b3a0113fb9e94dff21c",
+        measurementId: "G-QN5EF2D0JY",
+      };
 
-    const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    const storage = getStorage(app);
+      const app = initializeApp(firebaseConfig);
+      // const analytics = getAnalytics(app);
+      const auth = getAuth(app);
+      const db = getFirestore(app);
+      const storage = getStorage(app);
 
-    // Try sign in anonymously first; user may upgrade to Google for role-based access
-    signInAnonymously(auth).catch(console.error);
+      // Try sign in anonymously first; user may upgrade to Google for role-based access
+      // signInAnonymously(auth).catch(console.error);
 
-    async function readRole(uid){
-      try{
-        const snap = await getDoc(doc(db, "users", uid));
-        return snap.exists() ? (snap.data().role || "viewer") : "viewer";
-      }catch(e){ console.error(e); return "viewer"; }
-    }
+      async function readRole(uid) {
+        try {
+          const snap = await getDoc(doc(db, "users", uid));
+          return snap.exists() ? snap.data().role || "viewer" : "viewer";
+        } catch (e) {
+          console.error(e);
+          return "viewer";
+        }
+      }
 
-    onAuthStateChanged(auth, async (u) => {
-      const role = u ? await readRole(u.uid) : "viewer";
-      window.__uid = u?.uid;
-      window.__role = role;
-      window.dispatchEvent(new CustomEvent("role-change",{detail:{uid: u?.uid || null, role}}));
-    });
+      onAuthStateChanged(auth, async (u) => {
+        const role = u ? await readRole(u.uid) : "viewer";
+        window.__uid = u?.uid;
+        window.__role = role;
+        window.dispatchEvent(
+          new CustomEvent("role-change", {
+            detail: { uid: u?.uid || null, role },
+          })
+        );
+      });
 
-    // Expose firebase to app.js
-    window.__fb = { db, storage, auth };
+      // Expose firebase to app.js
+      window.__fb = { db, storage, auth };
 
-    // Handle login buttons
-    window.__loginGoogle = async ()=>{
-      try{
-        const prov = new GoogleAuthProvider();
-        await signInWithPopup(auth, prov);
-      }catch(e){ alert(e.message); }
-    };
-    window.__logout = ()=> signOut(auth);
-  </script>
-</head>
-<body>
-  <header class="topbar">
-    <div class="brand">📸 Photo Studio <span class="badge">PRO</span></div>
-    <div class="auth">
-      <span id="roleBadge" class="muted">role: —</span>
-      <button class="btn" onclick="window.__loginGoogle()">Google Login</button>
-      <button class="btn" onclick="window.__logout()">Logout</button>
-      <button id="exportBtn" class="btn primary">Export PNG</button>
-      <button id="exportPdfBtn" class="btn">Export PDF</button>
-    </div>
-  </header>
+      // Handle login buttons
+      window.__loginGoogle = async () => {
+        try {
+          const prov = new GoogleAuthProvider();
+          await signInWithPopup(auth, prov);
+        } catch (e) {
+          alert(e.message);
+        }
+      };
+      window.__logout = () => signOut(auth);
+    </script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">📸 Photo Studio <span class="badge">PRO</span></div>
+      <div class="auth">
+        <span id="roleBadge" class="muted">role: —</span>
+        <button class="btn" onclick="window.__loginGoogle()">
+          Google Login
+        </button>
+        <button class="btn" onclick="window.__logout()">Logout</button>
+        <button id="exportBtn" class="btn primary">Export PNG</button>
+        <button id="exportPdfBtn" class="btn">Export PDF</button>
+      </div>
+    </header>
 
-  <!-- == GLOBAL NAV WRAPPER == -->
-  <div class="layout">
-    <!-- Sidebar -->
-    <aside class="side">
-      <div class="side-sec">
-        <div class="sec-title">Filters</div>
-        <div class="btn-col">
-          <button class="btn mini" data-action="filter:none">Original</button>
-          <button class="btn mini" data-action="filter:caricature">Caricature</button>
+    <!-- == GLOBAL NAV WRAPPER == -->
+    <div class="layout">
+      <!-- Sidebar -->
+      <aside class="side">
+        <div class="side-sec">
+          <div class="sec-title">Filters</div>
+          <div class="btn-col">
+            <button class="btn mini" data-action="filter:none">Original</button>
+            <button class="btn mini" data-action="filter:caricature">
+              Caricature
+            </button>
+            <button class="btn mini" data-action="filter:cartoon">
+              Cartoon
+            </button>
+            <button class="btn mini" data-action="filter:watercolor">
+              Watercolor
+            </button>
+            <button class="btn mini" data-action="filter:oil">Oil</button>
+            <button class="btn mini" data-action="filter:posterize">
+              Posterize
+            </button>
+          </div>
+        </div>
+
+        <div class="side-sec">
+          <div class="sec-title">Theme</div>
+          <div class="btn-col">
+            <button class="btn mini" data-action="theme:graduation">
+              Graduation
+            </button>
+            <button class="btn mini" data-action="theme:speech">Speech</button>
+            <button class="btn mini" data-action="theme:campaign">
+              Campaign
+            </button>
+            <button class="btn mini" data-action="theme:sports">Sports</button>
+          </div>
+        </div>
+
+        <div class="side-sec">
+          <div class="sec-title">Frame</div>
+          <div class="btn-col">
+            <button class="btn mini" data-action="frame:none">None</button>
+            <button class="btn mini" data-action="frame:simple">Simple</button>
+            <button class="btn mini" data-action="frame:ornate">Ornate</button>
+            <button class="btn mini" data-action="frame:film">Film</button>
+          </div>
+        </div>
+
+        <div class="side-sec">
+          <div class="sec-title">Size</div>
+          <div class="btn-col">
+            <button class="btn mini" data-action="size:1080">1080×1080</button>
+            <button class="btn mini" data-action="size:1350">1080×1350</button>
+            <button class="btn mini" data-action="size:1920">1920×1080</button>
+            <button class="btn mini" data-action="size:3000">3000×2000</button>
+          </div>
+        </div>
+
+        <div class="side-sec">
+          <div class="sec-title">Accessories</div>
+          <div class="btn-col">
+            <button class="btn mini" data-action="acc:glasses">Glasses</button>
+            <button class="btn mini" data-action="acc:hat">Hat</button>
+            <button class="btn mini" data-action="acc:earrings">
+              Earrings
+            </button>
+            <button class="btn mini" data-action="acc:necklace">
+              Necklace
+            </button>
+            <button class="btn mini warn" data-action="acc:clear">
+              Clear All
+            </button>
+          </div>
+        </div>
+
+        <div class="side-sec gated-pro">
+          <div class="sec-title">AI Hair / Foreground</div>
+          <div class="btn-col">
+            <button class="btn mini" data-action="ai:hair_off">
+              Bald (no hair)
+            </button>
+            <button class="btn mini" data-action="ai:hair_short">
+              Short Hair
+            </button>
+            <button class="btn mini" data-action="ai:hair_long">
+              Long Hair
+            </button>
+            <button class="btn mini" data-action="ai:beard_on">
+              Add Beard
+            </button>
+            <button class="btn mini" data-action="ai:beard_off">
+              Remove Beard
+            </button>
+            <button class="btn mini" data-action="ai:fg_prompt">
+              Custom FG Prompt
+            </button>
+          </div>
+        </div>
+
+        <div class="side-sec gated-pro">
+          <div class="sec-title">AI Background</div>
+          <div class="btn-col">
+            <button class="btn mini" data-action="ai:bg_beach">Beach</button>
+            <button class="btn mini" data-action="ai:bg_studio">Studio</button>
+            <button class="btn mini" data-action="ai:bg_custom">
+              Custom BG…
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main content -->
+      <div class="content">
+        <nav class="topnav">
+          <button class="btn mini ghost" id="toggleSide">☰ Menu</button>
           <button class="btn mini" data-action="filter:cartoon">Cartoon</button>
-          <button class="btn mini" data-action="filter:watercolor">Watercolor</button>
-          <button class="btn mini" data-action="filter:oil">Oil</button>
-          <button class="btn mini" data-action="filter:posterize">Posterize</button>
-        </div>
-      </div>
+          <button class="btn mini" data-action="theme:graduation">🎓</button>
+          <button class="btn mini" data-action="ai:hair_off" title="Bald">
+            🧑‍🦲
+          </button>
+          <button class="btn mini" data-action="ai:bg_studio" title="Studio BG">
+            🏢
+          </button>
+          <button class="btn mini" data-action="size:1080" title="Square">
+            ▢
+          </button>
+        </nav>
 
-      <div class="side-sec">
-        <div class="sec-title">Theme</div>
-        <div class="btn-col">
-          <button class="btn mini" data-action="theme:graduation">Graduation</button>
-          <button class="btn mini" data-action="theme:speech">Speech</button>
-          <button class="btn mini" data-action="theme:campaign">Campaign</button>
-          <button class="btn mini" data-action="theme:sports">Sports</button>
-        </div>
-      </div>
+        <main class="wrap">
+          <section class="panel card">
+            <h1>Photo Editing App (Pro)</h1>
+            <p class="muted">
+              Auto-fit accessories with face landmarks • Text overlays •
+              Multi-page PDF • Role-gated pro tools
+            </p>
 
-      <div class="side-sec">
-        <div class="sec-title">Frame</div>
-        <div class="btn-col">
-          <button class="btn mini" data-action="frame:none">None</button>
-          <button class="btn mini" data-action="frame:simple">Simple</button>
-          <button class="btn mini" data-action="frame:ornate">Ornate</button>
-          <button class="btn mini" data-action="frame:film">Film</button>
-        </div>
-      </div>
+            <div class="uploader">
+              <label class="file-label">
+                <input id="fileInput" type="file" accept="image/*" />
+                <span>Upload an image</span>
+              </label>
 
-      <div class="side-sec">
-        <div class="sec-title">Size</div>
-        <div class="btn-col">
-          <button class="btn mini" data-action="size:1080">1080×1080</button>
-          <button class="btn mini" data-action="size:1350">1080×1350</button>
-          <button class="btn mini" data-action="size:1920">1920×1080</button>
-          <button class="btn mini" data-action="size:3000">3000×2000</button>
-        </div>
-      </div>
-
-      <div class="side-sec">
-        <div class="sec-title">Accessories</div>
-        <div class="btn-col">
-          <button class="btn mini" data-action="acc:glasses">Glasses</button>
-          <button class="btn mini" data-action="acc:hat">Hat</button>
-          <button class="btn mini" data-action="acc:earrings">Earrings</button>
-          <button class="btn mini" data-action="acc:necklace">Necklace</button>
-          <button class="btn mini warn" data-action="acc:clear">Clear All</button>
-        </div>
-      </div>
-
-      <div class="side-sec gated-pro">
-        <div class="sec-title">AI Hair / Foreground</div>
-        <div class="btn-col">
-          <button class="btn mini" data-action="ai:hair_off">Bald (no hair)</button>
-          <button class="btn mini" data-action="ai:hair_short">Short Hair</button>
-          <button class="btn mini" data-action="ai:hair_long">Long Hair</button>
-          <button class="btn mini" data-action="ai:beard_on">Add Beard</button>
-          <button class="btn mini" data-action="ai:beard_off">Remove Beard</button>
-          <button class="btn mini" data-action="ai:fg_prompt">Custom FG Prompt</button>
-        </div>
-      </div>
-
-      <div class="side-sec gated-pro">
-        <div class="sec-title">AI Background</div>
-        <div class="btn-col">
-          <button class="btn mini" data-action="ai:bg_beach">Beach</button>
-          <button class="btn mini" data-action="ai:bg_studio">Studio</button>
-          <button class="btn mini" data-action="ai:bg_custom">Custom BG…</button>
-        </div>
-      </div>
-    </aside>
-
-    <!-- Main content -->
-    <div class="content">
-      <nav class="topnav">
-        <button class="btn mini ghost" id="toggleSide">☰ Menu</button>
-        <button class="btn mini" data-action="filter:cartoon">Cartoon</button>
-        <button class="btn mini" data-action="theme:graduation">🎓</button>
-        <button class="btn mini" data-action="ai:hair_off" title="Bald">🧑‍🦲</button>
-        <button class="btn mini" data-action="ai:bg_studio" title="Studio BG">🏢</button>
-        <button class="btn mini" data-action="size:1080" title="Square">▢</button>
-      </nav>
-
-      <main class="wrap">
-        <section class="panel card">
-          <h1>Photo Editing App (Pro)</h1>
-          <p class="muted">Auto-fit accessories with face landmarks • Text overlays • Multi-page PDF • Role-gated pro tools</p>
-
-          <div class="uploader">
-            <label class="file-label">
-              <input id="fileInput" type="file" accept="image/*" />
-              <span>Upload an image</span>
-            </label>
-
-            <!-- Stage wraps canvas + overlays (text/accessories) -->
-            <div id="stage" class="stage">
-              <canvas id="canvas" class="canvas"></canvas>
+              <!-- Stage wraps canvas + overlays (text/accessories) -->
+              <div id="stage" class="stage">
+                <canvas id="canvas" class="canvas"></canvas>
+              </div>
+              <div id="noImageHint" class="hint">
+                Please upload an image to start.
+              </div>
             </div>
-            <div id="noImageHint" class="hint">Please upload an image to start.</div>
-          </div>
-        </section>
+          </section>
 
-        <!-- Filters -->
-        <section class="panel card">
-          <h2>1) Quick Style</h2>
-          <div class="grid sm-2 md-3">
-            <button data-filter="none" class="btn">Original</button>
-            <button data-filter="caricature" class="btn">Caricature</button>
-            <button data-filter="cartoon" class="btn">Cartoon</button>
-            <button data-filter="watercolor" class="btn">Watercolor</button>
-            <button data-filter="oil" class="btn">Oil</button>
-            <button data-filter="posterize" class="btn">Posterize</button>
-          </div>
-        </section>
-
-        <!-- BG/FG AI -->
-        <section class="panel card gated gated-pro">
-          <div class="row-split">
-            <h2>2) Background / Foreground (AI)</h2>
-            <span class="pill">PRO</span>
-          </div>
-          <div class="stack">
-            <input id="bgPrompt" class="input" placeholder="e.g., Change background to red beach…" />
-            <div class="grid sm-2">
-              <button id="bgReplaceBtn" class="btn">Replace Background</button>
-              <button id="fgReplaceBtn" class="btn">Edit Foreground</button>
+          <!-- Filters -->
+          <section class="panel card">
+            <h2>1) Quick Style</h2>
+            <div class="grid sm-2 md-3">
+              <button data-filter="none" class="btn">Original</button>
+              <button data-filter="caricature" class="btn">Caricature</button>
+              <button data-filter="cartoon" class="btn">Cartoon</button>
+              <button data-filter="watercolor" class="btn">Watercolor</button>
+              <button data-filter="oil" class="btn">Oil</button>
+              <button data-filter="posterize" class="btn">Posterize</button>
             </div>
-          </div>
-        </section>
+          </section>
 
-        <!-- Accessories auto-fit -->
-        <section class="panel card">
-          <h2>3) Accessory Overlay (Auto-fit)</h2>
-          <div class="grid sm-3 md-4">
-            <label class="check"><input type="checkbox" data-acc="glasses" /> Glasses</label>
-            <label class="check"><input type="checkbox" data-acc="hat" /> Hat</label>
-            <label class="check"><input type="checkbox" data-acc="earrings" /> Earrings</label>
-            <label class="check"><input type="checkbox" data-acc="necklace" /> Necklace</label>
-          </div>
-          <small class="muted">After uploading, please wait a moment while face landmarks are detected.</small>
-        </section>
+          <!-- BG/FG AI -->
+          <section class="panel card gated gated-pro">
+            <div class="row-split">
+              <h2>2) Background / Foreground (AI)</h2>
+              <span class="pill">PRO</span>
+            </div>
+            <div class="stack">
+              <input
+                id="bgPrompt"
+                class="input"
+                placeholder="e.g., Change background to red beach…"
+              />
+              <div class="grid sm-2">
+                <button id="bgReplaceBtn" class="btn">
+                  Replace Background
+                </button>
+                <button id="fgReplaceBtn" class="btn">Edit Foreground</button>
+              </div>
+            </div>
+          </section>
 
-        <!-- Text tool -->
-        <section class="panel card">
-          <h2>4) In-canvas Text Tool</h2>
-          <div class="grid sm-2 md-3">
-            <input id="textInput" class="input" placeholder="Type your text…" />
-            <select id="textFont" class="input">
-              <option value="system-ui">System</option>
-              <option value="Arial">Arial</option>
-              <option value="Georgia">Georgia</option>
-              <option value="Impact">Impact</option>
-              <option value="Courier New">Courier</option>
-            </select>
-            <input id="textSize" class="input" type="number" min="8" max="200" value="48" />
-            <input id="textColor" class="input" type="color" value="#ffffff" />
-            <label class="check"><input type="checkbox" id="textBold" /> Bold</label>
-            <label class="check"><input type="checkbox" id="textShadow" /> Shadow</label>
-            <button id="addTextBtn" class="btn">Add Text</button>
-          </div>
-        </section>
+          <!-- Accessories auto-fit -->
+          <section class="panel card">
+            <h2>3) Accessory Overlay (Auto-fit)</h2>
+            <div class="grid sm-3 md-4">
+              <label class="check"
+                ><input type="checkbox" data-acc="glasses" /> Glasses</label
+              >
+              <label class="check"
+                ><input type="checkbox" data-acc="hat" /> Hat</label
+              >
+              <label class="check"
+                ><input type="checkbox" data-acc="earrings" /> Earrings</label
+              >
+              <label class="check"
+                ><input type="checkbox" data-acc="necklace" /> Necklace</label
+              >
+            </div>
+            <small class="muted"
+              >After uploading, please wait a moment while face landmarks are
+              detected.</small
+            >
+          </section>
 
-        <!-- Themes / Frames / Sizes -->
-        <section class="panel card">
-          <h2>5) Theme / Frame / Size</h2>
-          <div class="grid sm-2 md-3">
-            <button data-theme="graduation" class="btn">Graduation</button>
-            <button data-theme="speech" class="btn">Speech</button>
-            <button data-theme="campaign" class="btn">Poster/Campaign</button>
-            <button data-theme="sports" class="btn">Sports</button>
+          <!-- Text tool -->
+          <section class="panel card">
+            <h2>4) In-canvas Text Tool</h2>
+            <div class="grid sm-2 md-3">
+              <input
+                id="textInput"
+                class="input"
+                placeholder="Type your text…"
+              />
+              <select id="textFont" class="input">
+                <option value="system-ui">System</option>
+                <option value="Arial">Arial</option>
+                <option value="Georgia">Georgia</option>
+                <option value="Impact">Impact</option>
+                <option value="Courier New">Courier</option>
+              </select>
+              <input
+                id="textSize"
+                class="input"
+                type="number"
+                min="8"
+                max="200"
+                value="48"
+              />
+              <input
+                id="textColor"
+                class="input"
+                type="color"
+                value="#ffffff"
+              />
+              <label class="check"
+                ><input type="checkbox" id="textBold" /> Bold</label
+              >
+              <label class="check"
+                ><input type="checkbox" id="textShadow" /> Shadow</label
+              >
+              <button id="addTextBtn" class="btn">Add Text</button>
+            </div>
+          </section>
 
-            <select id="frameSelect" class="input">
-              <option value="none">No Frame</option>
-              <option value="simple">Simple Frame</option>
-              <option value="ornate">Ornate Frame</option>
-              <option value="film">Film Border</option>
-            </select>
+          <!-- Themes / Frames / Sizes -->
+          <section class="panel card">
+            <h2>5) Theme / Frame / Size</h2>
+            <div class="grid sm-2 md-3">
+              <button data-theme="graduation" class="btn">Graduation</button>
+              <button data-theme="speech" class="btn">Speech</button>
+              <button data-theme="campaign" class="btn">Poster/Campaign</button>
+              <button data-theme="sports" class="btn">Sports</button>
 
-            <select id="sizeSelect" class="input">
-              <option value="1080">1080×1080</option>
-              <option value="1350">1080×1350</option>
-              <option value="1920">1920×1080</option>
-              <option value="3000">3000×2000</option>
-            </select>
-          </div>
-        </section>
+              <select id="frameSelect" class="input">
+                <option value="none">No Frame</option>
+                <option value="simple">Simple Frame</option>
+                <option value="ornate">Ornate Frame</option>
+                <option value="film">Film Border</option>
+              </select>
 
-        <!-- Age / Celebrity (AI) -->
-        <section class="panel card gated gated-pro">
-          <div class="row-split">
-            <h2>6) Age Transform / Celebrity Pair (AI)</h2>
-            <span class="pill">PRO</span>
-          </div>
-          <div class="grid sm-2 md-3">
-            <select id="ageMode" class="input">
-              <option value="none">No Change</option>
-              <option value="past5">−5 yrs</option>
-              <option value="past10">−10 yrs</option>
-              <option value="future5">+5 yrs</option>
-              <option value="future10">+10 yrs</option>
-              <option value="older">Older</option>
-              <option value="younger">Younger</option>
-            </select>
-            <button id="ageRunBtn" class="btn">Apply Age AI</button>
+              <select id="sizeSelect" class="input">
+                <option value="1080">1080×1080</option>
+                <option value="1350">1080×1350</option>
+                <option value="1920">1920×1080</option>
+                <option value="3000">3000×2000</option>
+              </select>
+            </div>
+          </section>
 
-            <input id="celebName" class="input" placeholder="e.g., Tom Hanks, Taylor Swift…" />
-            <button id="celebRunBtn" class="btn">Celebrity Pair</button>
-          </div>
-        </section>
+          <!-- Age / Celebrity (AI) -->
+          <section class="panel card gated gated-pro">
+            <div class="row-split">
+              <h2>6) Age Transform / Celebrity Pair (AI)</h2>
+              <span class="pill">PRO</span>
+            </div>
+            <div class="grid sm-2 md-3">
+              <select id="ageMode" class="input">
+                <option value="none">No Change</option>
+                <option value="past5">−5 yrs</option>
+                <option value="past10">−10 yrs</option>
+                <option value="future5">+5 yrs</option>
+                <option value="future10">+10 yrs</option>
+                <option value="older">Older</option>
+                <option value="younger">Younger</option>
+              </select>
+              <button id="ageRunBtn" class="btn">Apply Age AI</button>
 
-        <!-- Email -->
-        <section class="panel card">
-          <h2>7) Email Results</h2>
-          <div class="stack">
-            <input id="emailTo" class="input" type="email" placeholder="Your email" />
-            <button id="sendEmailBtn" class="btn">Send with EmailJS</button>
-          </div>
-        </section>
+              <input
+                id="celebName"
+                class="input"
+                placeholder="e.g., Tom Hanks, Taylor Swift…"
+              />
+              <button id="celebRunBtn" class="btn">Celebrity Pair</button>
+            </div>
+          </section>
 
-        <!-- Multi-page poster export queue -->
-        <section class="panel card">
-          <h2>8) Multi-page Poster PDF</h2>
-          <div class="grid sm-2 md-3">
-            <button id="addPageBtn" class="btn">Add Current as Page</button>
-            <button id="clearPagesBtn" class="btn">Clear Pages</button>
-            <div id="pagesInfo" class="muted">Pages: 0</div>
-          </div>
-        </section>
+          <!-- Email -->
+          <section class="panel card">
+            <h2>7) Email Results</h2>
+            <div class="stack">
+              <input
+                id="emailTo"
+                class="input"
+                type="email"
+                placeholder="Your email"
+              />
+              <button id="sendEmailBtn" class="btn">Send with EmailJS</button>
+            </div>
+          </section>
 
-        <footer class="footer">
-          <small>© 2025 Photo Studio Pro — For personal, consent-based edits only.</small>
-        </footer>
-      </main>
+          <!-- Multi-page poster export queue -->
+          <section class="panel card">
+            <h2>8) Multi-page Poster PDF</h2>
+            <div class="grid sm-2 md-3">
+              <button id="addPageBtn" class="btn">Add Current as Page</button>
+              <button id="clearPagesBtn" class="btn">Clear Pages</button>
+              <div id="pagesInfo" class="muted">Pages: 0</div>
+            </div>
+          </section>
+
+          <footer class="footer">
+            <small
+              >© 2025 Photo Studio Pro — For personal, consent-based edits
+              only.</small
+            >
+          </footer>
+        </main>
+      </div>
     </div>
-  </div>
 
-  <script src="/app.js" type="module"></script>
-</body>
+    <script src="/app.js" type="module"></script>
+  </body>
 </html>
