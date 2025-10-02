@@ -6,17 +6,16 @@
     "indexes": "firestore.indexes.json"
   },
   "hosting": {
-    "public": "public",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
+    "public": ".",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
+      { "source": "/api/**", "function": "api" }
+    ],
+    "headers": [
+      { "source": "**", "headers": [{ "key": "Cache-Control", "value": "no-store" }] }
     ]
+  },
+  "functions": {
+    "runtime": "nodejs20"
   }
 }

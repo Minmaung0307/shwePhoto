@@ -1,204 +1,235 @@
 <!DOCTYPE html>
 <html lang="my">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ShweLibrary Photos (Firebase)</title>
-  <link rel="stylesheet" href="styles.css" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Photo Studio Pro — Mobile First</title>
+  <link rel="stylesheet" href="./styles.css" />
+
+  <!-- EmailJS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+  <!-- jsPDF for multi-page export -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <!-- face-api.js for face landmarks -->
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
+  <!-- Firebase v10 (Modular) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-analytics.js";
+    import { getAuth, onAuthStateChanged, signInAnonymously, signOut, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+    import { getStorage } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-storage.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAuzySrz5G6PldnTljOJjmg1emKV5mqzz4",
+  authDomain: "shwephoto-mm.firebaseapp.com",
+  projectId: "shwephoto-mm",
+  storageBucket: "shwephoto-mm.firebasestorage.app",
+  messagingSenderId: "580359744533",
+  appId: "1:580359744533:web:363b3a0113fb9e94dff21c",
+  measurementId: "G-QN5EF2D0JY"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+
+    // Try sign in anonymously first; user may upgrade to Google for role-based access
+    signInAnonymously(auth).catch(console.error);
+
+    async function readRole(uid){
+      try{
+        const snap = await getDoc(doc(db, "users", uid));
+        return snap.exists() ? (snap.data().role || "viewer") : "viewer";
+      }catch(e){ console.error(e); return "viewer"; }
+    }
+
+    onAuthStateChanged(auth, async (u) => {
+      const role = u ? await readRole(u.uid) : "viewer";
+      window.__uid = u?.uid;
+      window.__role = role;
+      window.dispatchEvent(new CustomEvent("role-change",{detail:{uid: u?.uid || null, role}}));
+    });
+
+    // Expose firebase to app.js
+    window.__fb = { db, storage, auth };
+
+    // Handle login buttons
+    window.__loginGoogle = async ()=>{
+      try{
+        const prov = new GoogleAuthProvider();
+        await signInWithPopup(auth, prov);
+      }catch(e){ alert(e.message); }
+    };
+    window.__logout = ()=> signOut(auth);
+  </script>
 </head>
 <body>
-  <!-- Auth Screen -->
-  <div id="authScreen" class="screen">
-    <div class="card">
-      <h1>ShweLibrary Photos</h1>
-      <div class="tabs">
-        <button id="tabLogin" class="active">၀င်ရောက်မည်</button>
-        <button id="tabSignup">အကောင့်ဖွင့်မည်</button>
-      </div>
-      <form id="loginForm" class="auth-form">
-        <input type="email" id="loginEmail" placeholder="အီးမေးလ်" required>
-        <input type="password" id="loginPass" placeholder="လျှို့၀ှက်စကားဝှက်" required>
-        <button type="submit" class="primary">၀င်ရောက်မည်</button>
-      </form>
-      <form id="signupForm" class="auth-form hidden">
-        <input type="text" id="signupName" placeholder="နာမည်" required>
-        <input type="email" id="signupEmail" placeholder="အီးမေးလ်" required>
-        <input type="password" id="signupPass" placeholder="စကားဝှက် (အနည်းဆုံး ၆ လုံး)" minlength="6" required>
-        <button type="submit" class="primary">အကောင့်ဖွင့်မည်</button>
-      </form>
-      <p class="muted small">Firebase Auth / Firestore / Storage အသုံးပြုထားသည်</p>
+  <header class="topbar">
+    <div class="brand">📸 Photo Studio <span class="badge">PRO</span></div>
+    <div class="auth">
+      <span id="roleBadge" class="muted">role: —</span>
+      <button class="btn" onclick="window.__loginGoogle()">Google Login</button>
+      <button class="btn" onclick="window.__logout()">Logout</button>
+      <button id="exportBtn" class="btn primary">Export PNG</button>
+      <button id="exportPdfBtn" class="btn">Export PDF</button>
     </div>
-  </div>
+  </header>
 
-  <!-- App -->
-  <div id="appScreen" class="screen hidden">
-    <header class="topbar">
-      <button id="btnMenu" aria-label="menu">☰</button>
-      <h2 class="brand">ShweLibrary</h2>
-      <div class="right">
-        <button id="btnUpload" class="primary small">＋ ပုံတင်မည်</button>
-        <button id="btnBatch" class="ghost small">✔︎ Batch</button>
-        <button id="btnLogout" class="ghost small">ထွက်မည်</button>
+  <main class="wrap">
+    <section class="panel card">
+      <h1>ဓာတ်ပုံ ပြင်ဆင်ရေး App (Pro)</h1>
+      <p class="muted">Auto-fit accessories with face landmarks • Text overlays • Multi-page PDF • Role-gated pro tools</p>
+
+      <div class="uploader">
+        <label class="file-label">
+          <input id="fileInput" type="file" accept="image/*" />
+          <span>ဓာတ်ပုံ အပ်လုဒ်လုပ်ရန်</span>
+        </label>
+
+        <!-- Stage wraps canvas + overlays (text/accessories) -->
+        <div id="stage" class="stage">
+          <canvas id="canvas" class="canvas"></canvas>
+        </div>
+        <div id="noImageHint" class="hint">ဓာတ်ပုံတင်ပြီးမှ လုပ်နိုင်ပါမည်</div>
       </div>
-    </header>
+    </section>
 
-    <aside id="sidebar" class="sidebar hidden">
-      <div class="userbox">
-        <div id="userInitials" class="avatar">U</div>
-        <div>
-          <div id="userName">User</div>
-          <div id="userEmail" class="muted small"></div>
+    <!-- Filters -->
+    <section class="panel card">
+      <h2>၁) အစတင် Style ပြောင်းရန်</h2>
+      <div class="grid sm-2 md-3">
+        <button data-filter="none" class="btn">Original</button>
+        <button data-filter="caricature" class="btn">Caricature</button>
+        <button data-filter="cartoon" class="btn">Cartoon</button>
+        <button data-filter="watercolor" class="btn">ရေဆေး</button>
+        <button data-filter="oil" class="btn">ဆီဆေး</button>
+        <button data-filter="posterize" class="btn">Posterize</button>
+      </div>
+    </section>
+
+    <!-- BG/FG AI -->
+    <section class="panel card gated gated-pro">
+      <div class="row-split">
+        <h2>၂) Background / Foreground (AI)</h2>
+        <span class="pill">PRO</span>
+      </div>
+      <div class="stack">
+        <input id="bgPrompt" class="input" placeholder="ဥပမာ: အနောက်ခံကို ကမ်းခြေနီအဖြစ် ပြောင်း…" />
+        <div class="grid sm-2">
+          <button id="bgReplaceBtn" class="btn">Background ပြောင်း</button>
+          <button id="fgReplaceBtn" class="btn">Foreground ပြောင်း</button>
         </div>
       </div>
-      <hr>
-      <div class="section">
-        <h4>Albums</h4>
-        <div id="albumList" class="pill-list"></div>
-        <button id="btnNewAlbum" class="ghost full">＋ အယ်လဘမ်အသစ်</button>
+    </section>
+
+    <!-- Accessories auto-fit -->
+    <section class="panel card">
+      <h2>၃) Accessory Overlay (Auto-fit)</h2>
+      <div class="grid sm-3 md-4">
+        <label class="check"><input type="checkbox" data-acc="glasses" /> မျက်မှန်</label>
+        <label class="check"><input type="checkbox" data-acc="hat" /> ဦးထုပ်</label>
+        <label class="check"><input type="checkbox" data-acc="earrings" /> နားဆွဲ</label>
+        <label class="check"><input type="checkbox" data-acc="necklace" /> ဆွဲကြိုး</label>
       </div>
-      <div class="section">
-        <h4>Filters</h4>
-        <label class="filter"><input type="checkbox" id="fFav"> ပျင်းချင် ⭐</label>
-        <label class="filter"><input type="checkbox" id="fEdited"> ပြင်ထားသည်</label>
-        <div class="select-row">
-          <select id="fCategory">
-            <option value="">အမျိုးအစားအားလုံး</option>
-            <option>Family</option><option>Travel</option><option>Food</option>
-            <option>Art</option><option>Work</option><option>Other</option>
-          </select>
-          <select id="fSort">
-            <option value="new">အသစ်ဆုံး</option>
-            <option value="old">အဟောင်းဆုံး</option>
-            <option value="title">ခေါင်းစဉ်</option>
-          </select>
-        </div>
-        <input id="fSearch" placeholder="ရှာရန် (ခေါင်းစဉ်/စာတန်း/Tags)">
+      <small class="muted">ပုံတင်ပြီးခဏစောင့်ပါ — မျက်နှာနေရာထိုင်ချက်စစ်ဆေးနေသည်</small>
+    </section>
+
+    <!-- Text tool -->
+    <section class="panel card">
+      <h2>၄) In-canvas Text Tool</h2>
+      <div class="grid sm-2 md-3">
+        <input id="textInput" class="input" placeholder="စာ ရိုက်ပါ…" />
+        <select id="textFont" class="input">
+          <option value="system-ui">System</option>
+          <option value="Arial">Arial</option>
+          <option value="Georgia">Georgia</option>
+          <option value="Impact">Impact</option>
+          <option value="Courier New">Courier</option>
+        </select>
+        <input id="textSize" class="input" type="number" min="8" max="200" value="48" />
+        <input id="textColor" class="input" type="color" value="#ffffff" />
+        <label class="check"><input type="checkbox" id="textBold" /> Bold</label>
+        <label class="check"><input type="checkbox" id="textShadow" /> Shadow</label>
+        <button id="addTextBtn" class="btn">Add Text</button>
       </div>
-      <div class="section">
-        <h4>Album Music</h4>
-        <p class="small muted">Album ကြည့်နေစဉ် background သီချင်းဖွင့်ရန်</p>
-        <input type="file" id="albumAudio" accept="audio/*">
-        <button id="btnAttachAudio" class="ghost full">ယခု album သို့ချိတ်မည်</button>
-        <audio id="player" controls class="full"></audio>
+    </section>
+
+    <!-- Themes / Frames / Sizes -->
+    <section class="panel card">
+      <h2>၅) Theme / Frame / Size</h2>
+      <div class="grid sm-2 md-3">
+        <button data-theme="graduation" class="btn">ဘွဲယူ</button>
+        <button data-theme="speech" class="btn">ဟောပြော</button>
+        <button data-theme="campaign" class="btn">Poster/ကမ္ပိန်း</button>
+        <button data-theme="sports" class="btn">အားကစား</button>
+
+        <select id="frameSelect" class="input">
+          <option value="none">No Frame</option>
+          <option value="simple">Simple Frame</option>
+          <option value="ornate">Ornate Frame</option>
+          <option value="film">Film Border</option>
+        </select>
+
+        <select id="sizeSelect" class="input">
+          <option value="1080">1080×1080</option>
+          <option value="1350">1080×1350</option>
+          <option value="1920">1920×1080</option>
+          <option value="3000">3000×2000</option>
+        </select>
       </div>
-    </aside>
+    </section>
 
-    <main class="content">
-      <div class="toolbar">
-        <div class="chips" id="viewTabs">
-          <button data-view="grid" class="chip active">Grid</button>
-          <button data-view="masonry" class="chip">Masonry</button>
-          <button data-view="list" class="chip">List</button>
-        </div>
-        <div class="chips" id="quickFilters">
-          <button class="chip" data-q="cartoon">Cartoon</button>
-          <button class="chip" data-q="caricature">Caricature</button>
-          <button class="chip" data-q="watercolor">Watercolor</button>
-          <button class="chip" data-q="bg">BG Changed</button>
-        </div>
+    <!-- Age / Celebrity (AI) -->
+    <section class="panel card gated gated-pro">
+      <div class="row-split">
+        <h2>၆) Age Transform / Celebrity Pair (AI)</h2>
+        <span class="pill">PRO</span>
       </div>
+      <div class="grid sm-2 md-3">
+        <select id="ageMode" class="input">
+          <option value="none">No Change</option>
+          <option value="past5">−5 yrs</option>
+          <option value="past10">−10 yrs</option>
+          <option value="future5">+5 yrs</option>
+          <option value="future10">+10 yrs</option>
+          <option value="older">Older</option>
+          <option value="younger">Younger</option>
+        </select>
+        <button id="ageRunBtn" class="btn">Apply Age AI</button>
 
-      <div id="gallery" class="gallery grid"></div>
-    </main>
-  </div>
-
-  <!-- Upload Modal -->
-  <dialog id="uploadDlg" class="modal">
-    <form method="dialog" class="modal-card" id="uploadForm">
-      <h3>ပုံတင်မည်</h3>
-      <input type="file" id="fileInput" accept="image/*" required>
-      <input type="text" id="uTitle" placeholder="ခေါင်းစဉ်">
-      <input type="text" id="uCaption" placeholder="စာတန်း">
-      <textarea id="uDesc" placeholder="ဖော်ပြချက်"></textarea>
-      <input type="text" id="uTags" placeholder="tags (comma separated)">
-      <select id="uAlbum"></select>
-      <div class="actions">
-        <button value="cancel" class="ghost">ပယ်ဖျက်</button>
-        <button id="btnDoUpload" class="primary">သိမ်းမည်</button>
+        <input id="celebName" class="input" placeholder="Tom Hanks, Taylor Swift…" />
+        <button id="celebRunBtn" class="btn">Celebrity Pair</button>
       </div>
-    </form>
-  </dialog>
+    </section>
 
-  <!-- Viewer / Editor -->
-  <dialog id="viewerDlg" class="modal wide">
-    <div class="viewer">
-      <div class="canvas-wrap">
-        <canvas id="canvas"></canvas>
+    <!-- Email -->
+    <section class="panel card">
+      <h2>၇) Email Results</h2>
+      <div class="stack">
+        <input id="emailTo" class="input" type="email" placeholder="သင့် Email" />
+        <button id="sendEmailBtn" class="btn">Send with EmailJS</button>
       </div>
-      <div class="editor">
-        <div class="row">
-          <button class="chip small" data-effect="none">မူလ</button>
-          <button class="chip small" data-effect="cartoon">Cartoon</button>
-          <button class="chip small" data-effect="watercolor">Watercolor</button>
-          <button class="chip small" data-effect="caricature">Caricature*</button>
-          <button class="chip small" data-effect="background">BG ပြောင်း</button>
-        </div>
-        <div class="row sliders">
-          <label>Brightness <input type="range" id="slBright" min="-100" max="100" value="0"></label>
-          <label>Contrast <input type="range" id="slContrast" min="-100" max="100" value="0"></label>
-          <label>Saturation <input type="range" id="slSatu" min="-100" max="100" value="0"></label>
-          <label>Hue <input type="range" id="slHue" min="-180" max="180" value="0"></label>
-          <label>Blur <input type="range" id="slBlur" min="0" max="6" value="0"></label>
-        </div>
+    </section>
 
-        <div class="row">
-          <input type="color" id="bgColor" value="#ffffff">
-          <input type="file" id="bgImage" accept="image/*">
-          <button id="btnApply" class="primary small">သိမ်းမည်</button>
-          <button id="btnDownload" class="ghost small">Download</button>
-        </div>
-
-        <div class="row">
-          <button id="btnSticker" class="ghost small">Sticker ထည့်</button>
-          <button id="btnFrame" class="ghost small">Frame ထည့်</button>
-          <button id="btnWatermark" class="ghost small">Watermark</button>
-        </div>
-
-        <div class="meta">
-          <input id="mTitle" placeholder="ခေါင်းစဉ်">
-          <input id="mCaption" placeholder="စာတန်း">
-          <textarea id="mDesc" placeholder="ဖော်ပြချက်"></textarea>
-        </div>
-        <div class="row">
-          <button id="btnFav" class="ghost small">⭐ Favorite</button>
-          <button id="btnMove" class="ghost small">Album ပြောင်း…</button>
-          <button id="btnCover" class="ghost small">Album Cover သတ်မှတ်</button>
-          <button id="btnDelete" class="ghost small danger">ဖျက်မည်</button>
-          <button id="btnCloseViewer" class="ghost small">ပိတ်</button>
-        </div>
-        <p class="small muted">* Caricature = warp/bulge (beta) | Shortcuts: ←/→, D, E, Delete</p>
+    <!-- Multi-page poster export queue -->
+    <section class="panel card">
+      <h2>၈) Multi-page Poster PDF</h2>
+      <div class="grid sm-2 md-3">
+        <button id="addPageBtn" class="btn">Add Current as Page</button>
+        <button id="clearPagesBtn" class="btn">Clear Pages</button>
+        <div id="pagesInfo" class="muted">Pages: 0</div>
       </div>
-    </div>
-  </dialog>
+    </section>
 
-  <!-- Batch Toolbar -->
-  <div id="batchBar" class="batch hidden">
-    <div><span id="batchCount">0</span> ပုံရွေးထားသည်</div>
-    <div class="actions">
-      <button id="batchMove" class="ghost small">Album ပြောင်း</button>
-      <button id="batchTag" class="ghost small">Tag ထည့်</button>
-      <button id="batchDelete" class="ghost small danger">ဖျက်</button>
-      <button id="batchFilter" class="ghost small">Filter လှည့်</button>
-      <button id="batchClear" class="ghost small">ပယ်</button>
-    </div>
-  </div>
+    <footer class="footer">
+      <small>© 2025 Photo Studio Pro — For personal, consent-based edits only.</small>
+    </footer>
+  </main>
 
-  <template id="tplPhotoCard">
-    <div class="card photo">
-      <label class="pick hidden"><input type="checkbox" class="pickbox"></label>
-      <img crossorigin="anonymous">
-      <div class="meta">
-        <div class="title"></div>
-        <div class="caption"></div>
-      </div>
-      <div class="fav">⭐</div>
-    </div>
-  </template>
-
-  <!-- Firebase SDKs -->
-  <script type="module" src="app.js"></script>
+  <script src="./app.js" type="module"></script>
 </body>
 </html>
