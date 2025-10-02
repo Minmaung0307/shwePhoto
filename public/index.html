@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="my">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -18,17 +18,19 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
     import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-analytics.js";
     import { getAuth, onAuthStateChanged, signInAnonymously, signOut, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
     import { getStorage } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-storage.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAuzySrz5G6PldnTljOJjmg1emKV5mqzz4",
-  authDomain: "shwephoto-mm.firebaseapp.com",
-  projectId: "shwephoto-mm",
-  storageBucket: "shwephoto-mm.firebasestorage.app",
-  messagingSenderId: "580359744533",
-  appId: "1:580359744533:web:363b3a0113fb9e94dff21c",
-  measurementId: "G-QN5EF2D0JY"
+      authDomain: "shwephoto-mm.firebaseapp.com",
+      projectId: "shwephoto-mm",
+      /* RECOMMENDED: verify your actual bucket name in Firebase console */
+      storageBucket: "shwephoto-mm.firebasestorage.app",
+      // storageBucket: "shwephoto-mm.appspot.com", // <-- typical format
+      messagingSenderId: "580359744533",
+      appId: "1:580359744533:web:363b3a0113fb9e94dff21c",
+      measurementId: "G-QN5EF2D0JY"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -79,156 +81,248 @@
     </div>
   </header>
 
-  <main class="wrap">
-    <section class="panel card">
-      <h1>ဓာတ်ပုံ ပြင်ဆင်ရေး App (Pro)</h1>
-      <p class="muted">Auto-fit accessories with face landmarks • Text overlays • Multi-page PDF • Role-gated pro tools</p>
-
-      <div class="uploader">
-        <label class="file-label">
-          <input id="fileInput" type="file" accept="image/*" />
-          <span>ဓာတ်ပုံ အပ်လုဒ်လုပ်ရန်</span>
-        </label>
-
-        <!-- Stage wraps canvas + overlays (text/accessories) -->
-        <div id="stage" class="stage">
-          <canvas id="canvas" class="canvas"></canvas>
-        </div>
-        <div id="noImageHint" class="hint">ဓာတ်ပုံတင်ပြီးမှ လုပ်နိုင်ပါမည်</div>
-      </div>
-    </section>
-
-    <!-- Filters -->
-    <section class="panel card">
-      <h2>၁) အစတင် Style ပြောင်းရန်</h2>
-      <div class="grid sm-2 md-3">
-        <button data-filter="none" class="btn">Original</button>
-        <button data-filter="caricature" class="btn">Caricature</button>
-        <button data-filter="cartoon" class="btn">Cartoon</button>
-        <button data-filter="watercolor" class="btn">ရေဆေး</button>
-        <button data-filter="oil" class="btn">ဆီဆေး</button>
-        <button data-filter="posterize" class="btn">Posterize</button>
-      </div>
-    </section>
-
-    <!-- BG/FG AI -->
-    <section class="panel card gated gated-pro">
-      <div class="row-split">
-        <h2>၂) Background / Foreground (AI)</h2>
-        <span class="pill">PRO</span>
-      </div>
-      <div class="stack">
-        <input id="bgPrompt" class="input" placeholder="ဥပမာ: အနောက်ခံကို ကမ်းခြေနီအဖြစ် ပြောင်း…" />
-        <div class="grid sm-2">
-          <button id="bgReplaceBtn" class="btn">Background ပြောင်း</button>
-          <button id="fgReplaceBtn" class="btn">Foreground ပြောင်း</button>
+  <!-- == GLOBAL NAV WRAPPER == -->
+  <div class="layout">
+    <!-- Sidebar -->
+    <aside class="side">
+      <div class="side-sec">
+        <div class="sec-title">Filters</div>
+        <div class="btn-col">
+          <button class="btn mini" data-action="filter:none">Original</button>
+          <button class="btn mini" data-action="filter:caricature">Caricature</button>
+          <button class="btn mini" data-action="filter:cartoon">Cartoon</button>
+          <button class="btn mini" data-action="filter:watercolor">Watercolor</button>
+          <button class="btn mini" data-action="filter:oil">Oil</button>
+          <button class="btn mini" data-action="filter:posterize">Posterize</button>
         </div>
       </div>
-    </section>
 
-    <!-- Accessories auto-fit -->
-    <section class="panel card">
-      <h2>၃) Accessory Overlay (Auto-fit)</h2>
-      <div class="grid sm-3 md-4">
-        <label class="check"><input type="checkbox" data-acc="glasses" /> မျက်မှန်</label>
-        <label class="check"><input type="checkbox" data-acc="hat" /> ဦးထုပ်</label>
-        <label class="check"><input type="checkbox" data-acc="earrings" /> နားဆွဲ</label>
-        <label class="check"><input type="checkbox" data-acc="necklace" /> ဆွဲကြိုး</label>
+      <div class="side-sec">
+        <div class="sec-title">Theme</div>
+        <div class="btn-col">
+          <button class="btn mini" data-action="theme:graduation">Graduation</button>
+          <button class="btn mini" data-action="theme:speech">Speech</button>
+          <button class="btn mini" data-action="theme:campaign">Campaign</button>
+          <button class="btn mini" data-action="theme:sports">Sports</button>
+        </div>
       </div>
-      <small class="muted">ပုံတင်ပြီးခဏစောင့်ပါ — မျက်နှာနေရာထိုင်ချက်စစ်ဆေးနေသည်</small>
-    </section>
 
-    <!-- Text tool -->
-    <section class="panel card">
-      <h2>၄) In-canvas Text Tool</h2>
-      <div class="grid sm-2 md-3">
-        <input id="textInput" class="input" placeholder="စာ ရိုက်ပါ…" />
-        <select id="textFont" class="input">
-          <option value="system-ui">System</option>
-          <option value="Arial">Arial</option>
-          <option value="Georgia">Georgia</option>
-          <option value="Impact">Impact</option>
-          <option value="Courier New">Courier</option>
-        </select>
-        <input id="textSize" class="input" type="number" min="8" max="200" value="48" />
-        <input id="textColor" class="input" type="color" value="#ffffff" />
-        <label class="check"><input type="checkbox" id="textBold" /> Bold</label>
-        <label class="check"><input type="checkbox" id="textShadow" /> Shadow</label>
-        <button id="addTextBtn" class="btn">Add Text</button>
+      <div class="side-sec">
+        <div class="sec-title">Frame</div>
+        <div class="btn-col">
+          <button class="btn mini" data-action="frame:none">None</button>
+          <button class="btn mini" data-action="frame:simple">Simple</button>
+          <button class="btn mini" data-action="frame:ornate">Ornate</button>
+          <button class="btn mini" data-action="frame:film">Film</button>
+        </div>
       </div>
-    </section>
 
-    <!-- Themes / Frames / Sizes -->
-    <section class="panel card">
-      <h2>၅) Theme / Frame / Size</h2>
-      <div class="grid sm-2 md-3">
-        <button data-theme="graduation" class="btn">ဘွဲယူ</button>
-        <button data-theme="speech" class="btn">ဟောပြော</button>
-        <button data-theme="campaign" class="btn">Poster/ကမ္ပိန်း</button>
-        <button data-theme="sports" class="btn">အားကစား</button>
-
-        <select id="frameSelect" class="input">
-          <option value="none">No Frame</option>
-          <option value="simple">Simple Frame</option>
-          <option value="ornate">Ornate Frame</option>
-          <option value="film">Film Border</option>
-        </select>
-
-        <select id="sizeSelect" class="input">
-          <option value="1080">1080×1080</option>
-          <option value="1350">1080×1350</option>
-          <option value="1920">1920×1080</option>
-          <option value="3000">3000×2000</option>
-        </select>
+      <div class="side-sec">
+        <div class="sec-title">Size</div>
+        <div class="btn-col">
+          <button class="btn mini" data-action="size:1080">1080×1080</button>
+          <button class="btn mini" data-action="size:1350">1080×1350</button>
+          <button class="btn mini" data-action="size:1920">1920×1080</button>
+          <button class="btn mini" data-action="size:3000">3000×2000</button>
+        </div>
       </div>
-    </section>
 
-    <!-- Age / Celebrity (AI) -->
-    <section class="panel card gated gated-pro">
-      <div class="row-split">
-        <h2>၆) Age Transform / Celebrity Pair (AI)</h2>
-        <span class="pill">PRO</span>
+      <div class="side-sec">
+        <div class="sec-title">Accessories</div>
+        <div class="btn-col">
+          <button class="btn mini" data-action="acc:glasses">Glasses</button>
+          <button class="btn mini" data-action="acc:hat">Hat</button>
+          <button class="btn mini" data-action="acc:earrings">Earrings</button>
+          <button class="btn mini" data-action="acc:necklace">Necklace</button>
+          <button class="btn mini warn" data-action="acc:clear">Clear All</button>
+        </div>
       </div>
-      <div class="grid sm-2 md-3">
-        <select id="ageMode" class="input">
-          <option value="none">No Change</option>
-          <option value="past5">−5 yrs</option>
-          <option value="past10">−10 yrs</option>
-          <option value="future5">+5 yrs</option>
-          <option value="future10">+10 yrs</option>
-          <option value="older">Older</option>
-          <option value="younger">Younger</option>
-        </select>
-        <button id="ageRunBtn" class="btn">Apply Age AI</button>
 
-        <input id="celebName" class="input" placeholder="Tom Hanks, Taylor Swift…" />
-        <button id="celebRunBtn" class="btn">Celebrity Pair</button>
+      <div class="side-sec gated-pro">
+        <div class="sec-title">AI Hair / Foreground</div>
+        <div class="btn-col">
+          <button class="btn mini" data-action="ai:hair_off">Bald (no hair)</button>
+          <button class="btn mini" data-action="ai:hair_short">Short Hair</button>
+          <button class="btn mini" data-action="ai:hair_long">Long Hair</button>
+          <button class="btn mini" data-action="ai:beard_on">Add Beard</button>
+          <button class="btn mini" data-action="ai:beard_off">Remove Beard</button>
+          <button class="btn mini" data-action="ai:fg_prompt">Custom FG Prompt</button>
+        </div>
       </div>
-    </section>
 
-    <!-- Email -->
-    <section class="panel card">
-      <h2>၇) Email Results</h2>
-      <div class="stack">
-        <input id="emailTo" class="input" type="email" placeholder="သင့် Email" />
-        <button id="sendEmailBtn" class="btn">Send with EmailJS</button>
+      <div class="side-sec gated-pro">
+        <div class="sec-title">AI Background</div>
+        <div class="btn-col">
+          <button class="btn mini" data-action="ai:bg_beach">Beach</button>
+          <button class="btn mini" data-action="ai:bg_studio">Studio</button>
+          <button class="btn mini" data-action="ai:bg_custom">Custom BG…</button>
+        </div>
       </div>
-    </section>
+    </aside>
 
-    <!-- Multi-page poster export queue -->
-    <section class="panel card">
-      <h2>၈) Multi-page Poster PDF</h2>
-      <div class="grid sm-2 md-3">
-        <button id="addPageBtn" class="btn">Add Current as Page</button>
-        <button id="clearPagesBtn" class="btn">Clear Pages</button>
-        <div id="pagesInfo" class="muted">Pages: 0</div>
-      </div>
-    </section>
+    <!-- Main content -->
+    <div class="content">
+      <nav class="topnav">
+        <button class="btn mini ghost" id="toggleSide">☰ Menu</button>
+        <button class="btn mini" data-action="filter:cartoon">Cartoon</button>
+        <button class="btn mini" data-action="theme:graduation">🎓</button>
+        <button class="btn mini" data-action="ai:hair_off" title="Bald">🧑‍🦲</button>
+        <button class="btn mini" data-action="ai:bg_studio" title="Studio BG">🏢</button>
+        <button class="btn mini" data-action="size:1080" title="Square">▢</button>
+      </nav>
 
-    <footer class="footer">
-      <small>© 2025 Photo Studio Pro — For personal, consent-based edits only.</small>
-    </footer>
-  </main>
+      <main class="wrap">
+        <section class="panel card">
+          <h1>Photo Editing App (Pro)</h1>
+          <p class="muted">Auto-fit accessories with face landmarks • Text overlays • Multi-page PDF • Role-gated pro tools</p>
+
+          <div class="uploader">
+            <label class="file-label">
+              <input id="fileInput" type="file" accept="image/*" />
+              <span>Upload an image</span>
+            </label>
+
+            <!-- Stage wraps canvas + overlays (text/accessories) -->
+            <div id="stage" class="stage">
+              <canvas id="canvas" class="canvas"></canvas>
+            </div>
+            <div id="noImageHint" class="hint">Please upload an image to start.</div>
+          </div>
+        </section>
+
+        <!-- Filters -->
+        <section class="panel card">
+          <h2>1) Quick Style</h2>
+          <div class="grid sm-2 md-3">
+            <button data-filter="none" class="btn">Original</button>
+            <button data-filter="caricature" class="btn">Caricature</button>
+            <button data-filter="cartoon" class="btn">Cartoon</button>
+            <button data-filter="watercolor" class="btn">Watercolor</button>
+            <button data-filter="oil" class="btn">Oil</button>
+            <button data-filter="posterize" class="btn">Posterize</button>
+          </div>
+        </section>
+
+        <!-- BG/FG AI -->
+        <section class="panel card gated gated-pro">
+          <div class="row-split">
+            <h2>2) Background / Foreground (AI)</h2>
+            <span class="pill">PRO</span>
+          </div>
+          <div class="stack">
+            <input id="bgPrompt" class="input" placeholder="e.g., Change background to red beach…" />
+            <div class="grid sm-2">
+              <button id="bgReplaceBtn" class="btn">Replace Background</button>
+              <button id="fgReplaceBtn" class="btn">Edit Foreground</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Accessories auto-fit -->
+        <section class="panel card">
+          <h2>3) Accessory Overlay (Auto-fit)</h2>
+          <div class="grid sm-3 md-4">
+            <label class="check"><input type="checkbox" data-acc="glasses" /> Glasses</label>
+            <label class="check"><input type="checkbox" data-acc="hat" /> Hat</label>
+            <label class="check"><input type="checkbox" data-acc="earrings" /> Earrings</label>
+            <label class="check"><input type="checkbox" data-acc="necklace" /> Necklace</label>
+          </div>
+          <small class="muted">After uploading, please wait a moment while face landmarks are detected.</small>
+        </section>
+
+        <!-- Text tool -->
+        <section class="panel card">
+          <h2>4) In-canvas Text Tool</h2>
+          <div class="grid sm-2 md-3">
+            <input id="textInput" class="input" placeholder="Type your text…" />
+            <select id="textFont" class="input">
+              <option value="system-ui">System</option>
+              <option value="Arial">Arial</option>
+              <option value="Georgia">Georgia</option>
+              <option value="Impact">Impact</option>
+              <option value="Courier New">Courier</option>
+            </select>
+            <input id="textSize" class="input" type="number" min="8" max="200" value="48" />
+            <input id="textColor" class="input" type="color" value="#ffffff" />
+            <label class="check"><input type="checkbox" id="textBold" /> Bold</label>
+            <label class="check"><input type="checkbox" id="textShadow" /> Shadow</label>
+            <button id="addTextBtn" class="btn">Add Text</button>
+          </div>
+        </section>
+
+        <!-- Themes / Frames / Sizes -->
+        <section class="panel card">
+          <h2>5) Theme / Frame / Size</h2>
+          <div class="grid sm-2 md-3">
+            <button data-theme="graduation" class="btn">Graduation</button>
+            <button data-theme="speech" class="btn">Speech</button>
+            <button data-theme="campaign" class="btn">Poster/Campaign</button>
+            <button data-theme="sports" class="btn">Sports</button>
+
+            <select id="frameSelect" class="input">
+              <option value="none">No Frame</option>
+              <option value="simple">Simple Frame</option>
+              <option value="ornate">Ornate Frame</option>
+              <option value="film">Film Border</option>
+            </select>
+
+            <select id="sizeSelect" class="input">
+              <option value="1080">1080×1080</option>
+              <option value="1350">1080×1350</option>
+              <option value="1920">1920×1080</option>
+              <option value="3000">3000×2000</option>
+            </select>
+          </div>
+        </section>
+
+        <!-- Age / Celebrity (AI) -->
+        <section class="panel card gated gated-pro">
+          <div class="row-split">
+            <h2>6) Age Transform / Celebrity Pair (AI)</h2>
+            <span class="pill">PRO</span>
+          </div>
+          <div class="grid sm-2 md-3">
+            <select id="ageMode" class="input">
+              <option value="none">No Change</option>
+              <option value="past5">−5 yrs</option>
+              <option value="past10">−10 yrs</option>
+              <option value="future5">+5 yrs</option>
+              <option value="future10">+10 yrs</option>
+              <option value="older">Older</option>
+              <option value="younger">Younger</option>
+            </select>
+            <button id="ageRunBtn" class="btn">Apply Age AI</button>
+
+            <input id="celebName" class="input" placeholder="e.g., Tom Hanks, Taylor Swift…" />
+            <button id="celebRunBtn" class="btn">Celebrity Pair</button>
+          </div>
+        </section>
+
+        <!-- Email -->
+        <section class="panel card">
+          <h2>7) Email Results</h2>
+          <div class="stack">
+            <input id="emailTo" class="input" type="email" placeholder="Your email" />
+            <button id="sendEmailBtn" class="btn">Send with EmailJS</button>
+          </div>
+        </section>
+
+        <!-- Multi-page poster export queue -->
+        <section class="panel card">
+          <h2>8) Multi-page Poster PDF</h2>
+          <div class="grid sm-2 md-3">
+            <button id="addPageBtn" class="btn">Add Current as Page</button>
+            <button id="clearPagesBtn" class="btn">Clear Pages</button>
+            <div id="pagesInfo" class="muted">Pages: 0</div>
+          </div>
+        </section>
+
+        <footer class="footer">
+          <small>© 2025 Photo Studio Pro — For personal, consent-based edits only.</small>
+        </footer>
+      </main>
+    </div>
+  </div>
 
   <script src="./app.js" type="module"></script>
 </body>
